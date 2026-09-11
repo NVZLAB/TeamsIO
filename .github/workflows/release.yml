@@ -1,0 +1,68 @@
+name: Build and package
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet test TeamsIO.sln -c Release -p:RestoreLockedMode=true
+      - name: Publication and secret checks
+        shell: pwsh
+        run: |
+          $scanner = Join-Path $env:RUNNER_TEMP 'gitleaks'
+          New-Item -ItemType Directory -Force $scanner | Out-Null
+          $zip = Join-Path $scanner 'gitleaks.zip'
+          Invoke-WebRequest 'https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_x64.zip' -OutFile $zip
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne 'd29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e') { throw 'Scanner checksum mismatch' }
+          Expand-Archive $zip -DestinationPath $scanner
+          ./tools/Test-Publication.ps1 -GitleaksPath (Join-Path $scanner 'gitleaks.exe')
+  package:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Verify release version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content TeamsIO.csproj
+          if ($env:GITHUB_REF_NAME -ne "v$($project.Project.PropertyGroup.Version)") { throw 'Tag must match project version' }
+      - run: dotnet publish TeamsIO.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:RestoreLockedMode=true
+      - name: Build installer and manifest
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\TeamsIO_setup_script.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+          ./installer/New-UpdatePackage.ps1
+      - name: Validate the packaged update
+        shell: pwsh
+        run: |
+          $env:TEAMSIO_RELEASE_DIRECTORY = "$PWD\installer\Output"
+          dotnet test TeamsIO.sln -c Release -p:RestoreLockedMode=true --filter FullyQualifiedName~ReleaseIntegrationTests.PackagedInstaller
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged update validation failed' }
+      - name: Create draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          gh release create $env:GITHUB_REF_NAME "installer/Output/TeamsIO_Setup_$version.exe" installer/Output/update.json --verify-tag --draft --title "TeamsIO $env:GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed' }

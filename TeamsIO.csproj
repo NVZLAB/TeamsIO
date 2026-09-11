@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+		<PublishSingleFile>true</PublishSingleFile>
+		<!-- Single source of truth for the application and installer version. -->
+		<Version>1.0.1</Version>
+		<UseWindowsForms>true</UseWindowsForms>
+		<EnableUnsafeBinaryFormatterSerialization>false</EnableUnsafeBinaryFormatterSerialization>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<ApplicationIcon>assets\TeamsIO.ico</ApplicationIcon>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <None Remove="appsettings.example.json" />
+	  <Compile Remove="tests\**\*.cs" />
+	  <EmbeddedResource Remove="tests\**\*" />
+	  <None Remove="tests\**\*" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Include="assets\TeamsIO.ico" LogicalName="TeamsIO.AppIcon" />
+	  <EmbeddedResource Include="assets\teamsio-icon.png" LogicalName="TeamsIO.AppLogo" />
+	  <EmbeddedResource Include="docs\SETUP.md" LogicalName="TeamsIO.SetupGuide" />
+	  <Content Include="appsettings.example.json">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="docs\SETUP.md" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Azure.Identity" Version="1.21.0" />
+		<PackageReference Include="Microsoft.Graph" Version="5.63.0" />
+		<!-- Keep both the advisory package and HTTP redirect implementation patched. -->
+		<PackageReference Include="Microsoft.Kiota.Abstractions" Version="1.22.2" />
+		<PackageReference Include="Microsoft.Kiota.Http.HttpClientLibrary" Version="1.22.2" />
+	</ItemGroup>
+
+</Project>
