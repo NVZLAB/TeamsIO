@@ -35,7 +35,7 @@
 		<PackageReference Include="Azure.Identity" Version="1.21.0" />
 		<PackageReference Include="Microsoft.Graph" Version="5.63.0" />
 		<!-- Keep both the advisory package and HTTP redirect implementation patched. -->
-		<PackageReference Include="Microsoft.Kiota.Abstractions" Version="1.22.2" />
+		<PackageReference Include="Microsoft.Kiota.Abstractions" Version="2.1.2" />
 		<PackageReference Include="Microsoft.Kiota.Http.HttpClientLibrary" Version="1.22.2" />
 	</ItemGroup>
 
